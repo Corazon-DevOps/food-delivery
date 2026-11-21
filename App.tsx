@@ -56,22 +56,31 @@ function Steam({ index }: { index: number }) {
   return <Animated.View style={[styles.steam, { left: 19 + index * 15, transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [6, -31] }) }, { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, index % 2 ? 7 : -7] }) }], opacity: drift.interpolate({ inputRange: [0, .3, 1], outputRange: [0, .7, 0] }) }]}/>;
 }
 function Loading({ onSkip }: { onSkip: () => void }) {
-  const enter = useRef(new Animated.Value(0)).current;
+  const reveal = useRef(new Animated.Value(0)).current;
+  const cup = useRef(new Animated.Value(.93)).current;
+  const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(enter, { toValue: 1, duration: 900, useNativeDriver: true }).start();
-    // Keep the opening short; do not block navigation while images download.
-    const timer = setTimeout(onSkip, 2300);
-    return () => clearTimeout(timer);
-  }, [enter, onSkip]);
-  return <View style={styles.loading}>
-    <Animated.View style={{ alignItems: 'center', opacity: enter, transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [.88, 1] }) }] }}>
+    const movement = Animated.parallel([
+      Animated.timing(reveal, { toValue: 1, duration: 950, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.spring(cup, { toValue: 1, speed: 7, bounciness: 3, useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+    ]);
+    movement.start();
+    const timer = setTimeout(onSkip, 2350);
+    return () => { clearTimeout(timer); movement.stop(); };
+  }, [onSkip, reveal, cup, progress]);
+  return <LinearGradient colors={['#1C0E09', '#472617', '#21100B']} style={styles.loading}>
+    <View style={styles.loadGlow}/>
+    <Animated.View style={{ alignItems: 'center', opacity: reveal, transform: [{ scale: cup }] }}>
       <View style={styles.steamArea}><Steam index={0}/><Steam index={1}/><Steam index={2}/></View>
-      <Icon name="cafe" color="#F4E6D4" size={72}/>
-      <Text style={styles.loadBrand}>CIDOCA</Text><Text style={styles.loadSub}>CAFETERIA</Text>
-      <Text style={styles.loadCopy}>Seu momento merece um bom café.</Text>
+      <View style={styles.loadCupFrame}><View style={styles.loadCupInner}><Icon name="cafe-outline" color="#F8E9D5" size={64}/></View></View>
+      <View style={styles.loadDivider}/>
+      <Text style={styles.loadBrand}>CIDOCA</Text>
+      <Text style={styles.loadSub}>C A F E T E R I A</Text>
+      <Text style={styles.loadCopy}>Cada pausa tem seu sabor.</Text>
     </Animated.View>
-    <View style={styles.loadingLine}><Animated.View style={[styles.loadingFill, { transform: [{ scaleX: enter }] }]}/></View>
-  </View>;
+    <View style={styles.loadFooter}><View style={styles.loadingLine}><Animated.View style={[styles.loadingFill, { transform: [{ scaleX: progress }] }]}/></View><Text style={styles.loadingCaption}>PREPARANDO SEU MOMENTO</Text></View>
+  </LinearGradient>;
 }
 function ProductCard({ product, width, onOpen }: { product: Product; width: number; onOpen: () => void }) {
   return <Pressable style={[styles.productCard, { width }]} onPress={onOpen}>
@@ -184,6 +193,12 @@ function AppContent() {
 }
 export default function App() { return <SafeAreaProvider><AppContent/></SafeAreaProvider>; }
 const styles = StyleSheet.create({
+  loadGlow: { position: 'absolute', width: 310, height: 310, borderRadius: 160, backgroundColor: 'rgba(184,115,56,.09)', alignSelf: 'center', top: '29%' },
+  loadCupFrame: { width: 118, height: 118, borderRadius: 60, borderWidth: 1, borderColor: 'rgba(246,216,183,.3)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,.025)' },
+  loadCupInner: { width: 100, height: 100, borderRadius: 52, borderWidth: 1, borderColor: 'rgba(246,216,183,.14)', justifyContent: 'center', alignItems: 'center' },
+  loadDivider: { marginTop: 26, width: 40, height: 1, backgroundColor: '#AD8060' },
+  loadFooter: { position: 'absolute', bottom: 80, alignItems: 'center' },
+  loadingCaption: { fontSize: 9, color: '#D8BA9F', letterSpacing: 2.1, marginTop: 13, fontFamily: 'DM Sans_600SemiBold' },
   screenArea: { paddingHorizontal: 17, paddingTop: 19, paddingBottom: 102 },
   screenHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, gap: 10 },
   eyebrow: { color: COLOR.brown, fontSize: 10, fontFamily: 'DM Sans_700Bold', letterSpacing: 1.2 },
@@ -233,5 +248,5 @@ const styles = StyleSheet.create({
   bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 66, backgroundColor: '#FFFCF8', borderTopWidth: 1, borderColor: COLOR.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 5 }, tabItem: { minWidth: 0, flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, height: 58 }, tabCenter: { flex: 1, height: 58, borderRadius: 16, backgroundColor: COLOR.coffee, marginTop: 0, borderWidth: 0, elevation: 0 }, tabLabel: { fontSize: 10, color: COLOR.text, fontFamily: 'DM Sans_500Medium' },
   noResults: { padding: 30, alignItems: 'center' }, reset: { color: COLOR.brown, fontWeight: '800', marginTop: 10 }, emptyPage: { margin: 20, alignItems: 'center', paddingVertical: 70, gap: 12 }, emptyTitle: { fontSize: 24, color: COLOR.text, fontWeight: '800' }, emptyText: { color: COLOR.soft, fontSize: 13, textAlign: 'center' }, primaryAction: { marginTop: 17, paddingHorizontal: 25, paddingVertical: 12, backgroundColor: COLOR.coffee, borderRadius: 25 }, primaryText: { color: 'white', fontWeight: '700' },
   detailHero: { width: '100%' }, back: { position: 'absolute', top: 18, left: 18, width: 42, height: 42, borderRadius: 23, backgroundColor: '#0006', alignItems: 'center', justifyContent: 'center' }, detailContents: { padding: 21 }, detailCategory: { color: COLOR.brown, fontWeight: '800', fontSize: 11, letterSpacing: 1 }, detailName: { color: COLOR.text, fontWeight: '800', fontSize: 29, marginTop: 5 }, detailRating: { color: COLOR.soft, fontSize: 12 }, detailDescription: { color: COLOR.soft, fontSize: 14, lineHeight: 23, marginTop: 17 }, detailDivider: { height: 1, backgroundColor: COLOR.line, marginVertical: 21 }, detailLabel: { fontSize: 15, color: COLOR.text, fontWeight: '700' }, quantity: { flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 15 }, quantityIcon: { width: 38, height: 38, backgroundColor: '#E8DED2', borderRadius: 19, justifyContent: 'center', alignItems: 'center' }, quantityText: { fontSize: 18, fontWeight: '800', color: COLOR.text }, detailBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: COLOR.paper, padding: 15, borderTopWidth: 1, borderColor: COLOR.line }, addCartButton: { height: 54, borderRadius: 17, backgroundColor: COLOR.coffee, alignItems: 'center', justifyContent: 'space-around', flexDirection: 'row', gap: 8, paddingHorizontal: 10 }, addCartText: { color: 'white', fontSize: 13, fontWeight: '800' },
-  loading: { flex: 1, backgroundColor: '#32190F', justifyContent: 'center', alignItems: 'center' }, steamArea: { width: 78, height: 51, position: 'relative', marginBottom: 3 }, steam: { position: 'absolute', bottom: 0, height: 36, width: 6, borderRadius: 8, backgroundColor: '#EAD7C2' }, loadBrand: { color: '#FFF8EF', fontFamily: 'PlayfairDisplay_700Bold', fontSize: 45, fontWeight: '700', letterSpacing: 4, marginTop: 12 }, loadSub: { color: '#E8D1B9', fontSize: 11, fontWeight: '700', letterSpacing: 5 }, loadCopy: { color: '#DCC3AD', fontSize: 12, marginTop: 28 }, loadingLine: { position: 'absolute', bottom: 86, width: 110, height: 3, borderRadius: 3, backgroundColor: '#6C4A37', overflow: 'hidden' }, loadingFill: { width: '100%', height: '100%', backgroundColor: '#F5E3CF' },
+  loading: { flex: 1, backgroundColor: '#32190F', justifyContent: 'center', alignItems: 'center' }, steamArea: { width: 78, height: 51, position: 'relative', marginBottom: 3 }, steam: { position: 'absolute', bottom: 0, height: 36, width: 6, borderRadius: 8, backgroundColor: '#EAD7C2' }, loadBrand: { color: '#FFF8EF', fontFamily: 'PlayfairDisplay_700Bold', fontSize: 44, letterSpacing: 3, marginTop: 13 }, loadSub: { color: '#E8D1B9', fontSize: 10, letterSpacing: 1.2, marginTop: 1, fontFamily: 'DM Sans_600SemiBold' }, loadCopy: { color: '#DCC3AD', fontSize: 13, marginTop: 25, fontFamily: 'DM Sans_400Regular' }, loadingLine: { width: 135, height: 2, borderRadius: 3, backgroundColor: '#674836', overflow: 'hidden' }, loadingFill: { width: '100%', height: '100%', backgroundColor: '#F5E3CF' },
 });
