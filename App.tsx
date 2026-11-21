@@ -100,6 +100,11 @@ function AppContent() {
   const [cartTotal, setCartTotal] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const [notice, setNotice] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Bem-vindo à CIDOCA', message: 'Escolha um café e aproveite um momento especial.', read: false },
+    { id: 2, title: 'Queridinhos da casa', message: 'Conheça os sabores que conquistaram nossos clientes.', read: false },
+  ]);
+  const [items, setItems] = useState<{ product: Product; quantity: number }[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
   useEffect(() => {
     if (!ready || tab !== 'Início' || selected || search) return;
@@ -109,7 +114,22 @@ function AppContent() {
   const cardWidth = Math.max(140, Math.min(190, (width - 50) / 2.65));
   const results = products.filter(p => (category === 'Todos' || category === p.category) && (p.name + ' ' + p.description).toLowerCase().includes(search.trim().toLowerCase()));
   const open = (p: Product) => { setQty(1); setSelected(p); };
-  const add = (p: Product, amount = 1) => { setCartCount(c => c + amount); setCartTotal(t => t + amount * p.price); setSelected(null); };
+  const add = (p: Product, amount = 1) => {
+    setItems(lines => {
+      const found = lines.some(line => line.product.id === p.id);
+      return found ? lines.map(line => line.product.id === p.id ? { ...line, quantity: line.quantity + amount } : line) : [...lines, { product: p, quantity: amount }];
+    });
+    setCartCount(c => c + amount); setCartTotal(t => t + amount * p.price); setSelected(null);
+  };
+  const changeQuantity = (p: Product, difference: number) => {
+    const current = items.find(line => line.product.id === p.id);
+    if (!current) return;
+    const delta = difference < 0 ? -Math.min(current.quantity, -difference) : difference;
+    setItems(lines => lines.map(line => line.product.id === p.id ? { ...line, quantity: line.quantity + delta } : line).filter(line => line.quantity > 0));
+    setCartCount(n => Math.max(0, n + delta));
+    setCartTotal(n => Math.max(0, n + delta * p.price));
+  };
+  const unread = notifications.filter(n => !n.read).length;
   if (!ready || !fontsLoaded) return <Loading onSkip={() => setReady(true)}/>;
   return <SafeAreaView edges={['top', 'bottom', 'left', 'right']} style={styles.root}><StatusBar barStyle="dark-content" backgroundColor={COLOR.cream}/>
     {selected ? <View style={styles.flex}>
@@ -126,11 +146,22 @@ function AppContent() {
         <View style={styles.header}>
           <Pressable onPress={() => setNotice(v => !v)} style={styles.iconTap}><Icon name="menu-outline" size={27}/></Pressable>
           <View style={styles.brand}><Icon name="cafe" size={22} color={COLOR.coffee}/><Text style={styles.brandName}>CIDOCA</Text><View style={styles.brandSubline}><View style={styles.littleLine}/><Text style={styles.brandSmall}>CAFETERIA</Text><View style={styles.littleLine}/></View></View>
-          <View style={styles.headerRight}><Pressable onPress={() => setNotice(v => !v)} style={styles.iconTap}><Icon name="notifications-outline" size={23}/><View style={styles.badge}><Text style={styles.badgeText}>1</Text></View></Pressable><Pressable onPress={() => setTab('Pedido')} style={styles.iconTap}><Icon name="cart-outline" size={24}/>{cartCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{cartCount}</Text></View>}</Pressable></View>
+          <View style={styles.headerRight}><Pressable onPress={() => { setNotice(false); setTab('Avisos'); }} style={styles.iconTap}><Icon name="notifications-outline" size={23}/>{unread > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unread}</Text></View>}</Pressable><Pressable onPress={() => setTab('Pedido')} style={styles.iconTap}><Icon name="cart-outline" size={24}/>{cartCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{cartCount}</Text></View>}</Pressable></View>
         </View>
         {notice && <View style={styles.notice}><Text style={styles.noticeText}>Bem-vindo à Cafeteria CIDOCA! Faça seu pedido com carinho.</Text></View>}
-        {tab === 'Pedido' ? <View style={styles.emptyPage}><Icon name="bag-handle-outline" color={COLOR.coffee} size={43}/><Text style={styles.emptyTitle}>Seu pedido</Text><Text style={styles.emptyText}>{cartCount ? `${cartCount} item(ns) • ${brl(cartTotal)}` : 'Seu carrinho está vazio por enquanto.'}</Text><Text style={styles.emptyText}>Pagamento e entrega serão adicionados em breve.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Início')}><Text style={styles.primaryText}>Ver o cardápio</Text></Pressable></View> :
-        tab === 'Recompensas' || tab === 'Perfil' ? <View style={styles.emptyPage}><Icon name={tab === 'Perfil' ? 'person-circle-outline' : 'gift-outline'} color={COLOR.coffee} size={45}/><Text style={styles.emptyTitle}>{tab}</Text><Text style={styles.emptyText}>Estamos preparando esta área para você.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Início')}><Text style={styles.primaryText}>Voltar ao início</Text></Pressable></View> : <>
+        {tab === 'Avisos' ? <View style={styles.screenArea}>
+          <View style={styles.screenHeading}><View><Text style={styles.eyebrow}>CENTRAL CIDOCA</Text><Text style={styles.screenTitle}>Notificações</Text></View><Pressable onPress={() => setNotifications(v => v.map(n => ({ ...n, read: true })))}><Text style={styles.readAll}>Marcar como lidas</Text></Pressable></View>
+          {notifications.map(n => <Pressable key={n.id} onPress={() => setNotifications(v => v.map(x => x.id === n.id ? { ...x, read: true } : x))} style={[styles.notification, !n.read && styles.notificationNew]}><View style={styles.notificationIcon}><Icon name="cafe-outline" color={COLOR.coffee}/></View><View style={{ flex: 1 }}><Text style={styles.notificationTitle}>{n.title}</Text><Text style={styles.notificationText}>{n.message}</Text><Text style={styles.notificationMeta}>Cafeteria CIDOCA</Text></View>{!n.read && <View style={styles.unread}/>}</Pressable>)}
+          <Text style={styles.hint}>As notificações de pedidos serão disponibilizadas quando o serviço estiver integrado.</Text>
+        </View> : tab === 'Pedido' ? <View style={styles.screenArea}>
+          <View style={styles.screenHeading}><View><Text style={styles.eyebrow}>SEU CARRINHO</Text><Text style={styles.screenTitle}>Meu pedido</Text></View><View style={styles.countPill}><Text style={styles.countPillText}>{cartCount} itens</Text></View></View>
+          {items.length ? <>
+            {items.map(line => <View key={line.product.id} style={styles.lineItem}><Image source={{ uri: line.product.image }} style={styles.lineImage}/><View style={{ flex: 1, minWidth: 0 }}><Text style={styles.lineName} numberOfLines={2}>{line.product.name}</Text><Text style={styles.lineUnit}>{brl(line.product.price)} cada</Text><Text style={styles.linePrice}>{brl(line.quantity * line.product.price)}</Text></View><View style={styles.lineStepper}><Pressable onPress={() => changeQuantity(line.product, -1)} style={styles.stepperButton}><Icon name="remove" size={17}/></Pressable><Text style={styles.lineQty}>{line.quantity}</Text><Pressable onPress={() => changeQuantity(line.product, 1)} style={styles.stepperButton}><Icon name="add" size={17}/></Pressable></View></View>)}
+            <View style={styles.summary}><Text style={styles.summaryHeading}>Resumo do pedido</Text><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{brl(cartTotal)}</Text></View><View style={styles.summaryDivider}/><View style={styles.summaryRow}><Text style={styles.summaryHeading}>Total</Text><Text style={styles.summaryTotal}>{brl(cartTotal)}</Text></View><Text style={styles.hint}>Pagamento e entrega serão disponibilizados em uma próxima etapa.</Text></View>
+            <Pressable style={styles.moreButton} onPress={() => { setTab('Cardápio'); setShowAll(true); }}><Icon name="add-circle-outline" color={COLOR.coffee}/><Text style={styles.moreText}>Adicionar produtos</Text></Pressable>
+          </> : <View style={styles.emptyCart}><View style={styles.emptyCartIcon}><Icon name="cafe-outline" size={48} color={COLOR.coffee}/></View><Text style={styles.emptyTitle}>Sua pausa começa aqui</Text><Text style={styles.emptyText}>Escolha seu café favorito e um acompanhamento.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Cardápio')}><Text style={styles.primaryText}>Explorar cardápio</Text></Pressable></View>}
+        </View> :
+                tab === 'Recompensas' || tab === 'Perfil' ? <View style={styles.emptyPage}><Icon name={tab === 'Perfil' ? 'person-circle-outline' : 'gift-outline'} color={COLOR.coffee} size={45}/><Text style={styles.emptyTitle}>{tab}</Text><Text style={styles.emptyText}>Estamos preparando esta área para você.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Início')}><Text style={styles.primaryText}>Voltar ao início</Text></Pressable></View> : <>
         <View style={styles.searchRow}><View style={styles.searchBox}><Icon name="search-outline" size={21}/><TextInput style={styles.searchInput} placeholder="Buscar cafés, lanches e mais..." placeholderTextColor="#96877E" value={search} onChangeText={setSearch} returnKeyType="search"/></View><Pressable style={styles.filter} onPress={() => setCategory(category === 'Todos' ? 'Cafés' : 'Todos')}><Icon name="options-outline" size={22}/></Pressable></View>
         {tab === 'Início' && !search ? <View style={[styles.hero, { height: Math.min(246, Math.max(192, width * .54)) }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => open(banners[bannerIndex].product)}>
@@ -153,6 +184,40 @@ function AppContent() {
 }
 export default function App() { return <SafeAreaProvider><AppContent/></SafeAreaProvider>; }
 const styles = StyleSheet.create({
+  screenArea: { paddingHorizontal: 17, paddingTop: 19, paddingBottom: 102 },
+  screenHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, gap: 10 },
+  eyebrow: { color: COLOR.brown, fontSize: 10, fontFamily: 'DM Sans_700Bold', letterSpacing: 1.2 },
+  screenTitle: { color: COLOR.text, fontSize: 27, fontFamily: 'PlayfairDisplay_700Bold', marginTop: 3 },
+  readAll: { color: COLOR.brown, fontSize: 11, fontFamily: 'DM Sans_700Bold' },
+  notification: { flexDirection: 'row', gap: 12, padding: 15, borderRadius: 17, borderWidth: 1, borderColor: COLOR.line, backgroundColor: 'white', marginBottom: 11 },
+  notificationNew: { borderColor: '#D5B39A', backgroundColor: '#F8EDE3' },
+  notificationIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#EDE0D2', alignItems: 'center', justifyContent: 'center' },
+  notificationTitle: { color: COLOR.text, fontFamily: 'DM Sans_700Bold', fontSize: 14 },
+  notificationText: { color: COLOR.soft, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  notificationMeta: { color: COLOR.brown, fontSize: 10, marginTop: 8 },
+  unread: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLOR.brown, marginTop: 4 },
+  hint: { color: COLOR.soft, fontSize: 11, lineHeight: 18, marginTop: 15, textAlign: 'center' },
+  countPill: { backgroundColor: '#EADFD4', borderRadius: 20, paddingHorizontal: 13, paddingVertical: 7 },
+  countPillText: { color: COLOR.coffee, fontFamily: 'DM Sans_700Bold', fontSize: 12 },
+  lineItem: { flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, borderWidth: 1, borderColor: COLOR.line, padding: 10, backgroundColor: 'white', marginBottom: 10 },
+  lineImage: { width: 70, height: 79, borderRadius: 12 },
+  lineName: { color: COLOR.text, fontFamily: 'DM Sans_700Bold', fontSize: 13 },
+  lineUnit: { color: COLOR.soft, fontSize: 10, marginTop: 4 },
+  linePrice: { color: COLOR.coffee, fontFamily: 'DM Sans_800ExtraBold', fontSize: 13, marginTop: 8 },
+  lineStepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3EAE2', borderRadius: 12, padding: 3, gap: 5 },
+  stepperButton: { width: 25, height: 30, alignItems: 'center', justifyContent: 'center' },
+  lineQty: { color: COLOR.text, fontFamily: 'DM Sans_700Bold', fontSize: 12 },
+  summary: { backgroundColor: 'white', padding: 17, borderRadius: 17, borderWidth: 1, borderColor: COLOR.line, marginTop: 16 },
+  summaryHeading: { color: COLOR.text, fontFamily: 'DM Sans_800ExtraBold', fontSize: 15 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15 },
+  summaryLabel: { color: COLOR.soft, fontSize: 13 },
+  summaryValue: { color: COLOR.text, fontFamily: 'DM Sans_700Bold', fontSize: 13 },
+  summaryDivider: { height: 1, backgroundColor: COLOR.line, marginTop: 14 },
+  summaryTotal: { color: COLOR.coffee, fontFamily: 'DM Sans_800ExtraBold', fontSize: 21 },
+  moreButton: { marginTop: 15, padding: 14, borderWidth: 1, borderColor: COLOR.coffee, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+  moreText: { color: COLOR.coffee, fontFamily: 'DM Sans_700Bold' },
+  emptyCart: { alignItems: 'center', paddingVertical: 58, gap: 12 },
+  emptyCartIcon: { width: 94, height: 94, borderRadius: 50, backgroundColor: '#EEE2D7', alignItems: 'center', justifyContent: 'center', marginBottom: 11 },
   flex: { flex: 1 }, root: { flex: 1, backgroundColor: COLOR.cream }, scrollContent: { paddingBottom: 92 }, row: { flexDirection: 'row' },
   header: { height: 79, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 17 }, iconTap: { width: 33, height: 42, alignItems: 'center', justifyContent: 'center' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brand: { alignItems: 'center', position: 'absolute', left: 74, right: 74 }, brandName: { color: COLOR.coffee, fontFamily: 'serif', fontSize: 26, fontFamily: 'PlayfairDisplay_700Bold', letterSpacing: -.7, lineHeight: 30 }, brandSubline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, brandSmall: { color: COLOR.coffee, fontSize: 8, letterSpacing: 2.1, fontWeight: '700' }, littleLine: { width: 13, height: 1, backgroundColor: COLOR.coffee },
