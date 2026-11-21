@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Food Delivery",
-    "slug": "food-delivery",
-    "scheme": "fooddelivery",
+    "name": "Cafeteria CIDOCA",
+    "slug": "cafeteria-cidoca",
+    "scheme": "cidoca",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#100c0a",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F9F5F0",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#100c0a"
+        "backgroundColor": "#F9F5F0"
       }
     },
     "plugins": []
