@@ -1,104 +1,153 @@
-import React, { useState } from 'react';
-import { Image, ImageBackground, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, ImageBackground, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-const C = { bg: '#110D0B', panel: '#302824', orange: '#FF7909', white: '#FFFFFF', muted: '#CFC4BE' };
-const images = {
-  burger: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=1000&q=85',
-  cheese: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=900&q=85',
-  chicken: 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=900&q=85',
-  bbq: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=900&q=85',
-  pizza: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
-  fries: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&q=80',
-  drink: 'https://images.unsplash.com/photo-1513558161293-cdaf765edfd4?w=400&q=80',
-};
-type Food = { id: string; name: string; price: number; rating: string; image: string; bestseller?: boolean };
-const foods: Food[] = [
-  { id: 'cheese', name: 'Cheese Burger', price: 149, rating: '4.6 (2.1K)', image: images.cheese },
-  { id: 'chicken', name: 'Spicy Chicken Burger', price: 179, rating: '4.8 (3.4K)', image: images.chicken, bestseller: true },
-  { id: 'bbq', name: 'BBQ Burger', price: 189, rating: '4.7 (1.9K)', image: images.bbq },
-];
-const categories = [{ name: 'Burger', image: images.cheese }, { name: 'Pizza', image: images.pizza }, { name: 'Chicken', image: images.chicken }, { name: 'Fries', image: images.fries }, { name: 'Drinks', image: images.drink }];
+const COLOR = { cream: '#F9F5F0', paper: '#FFFCF8', coffee: '#4A2415', brown: '#703D25', text: '#251A15', soft: '#71645D', line: '#E9DFD6' };
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-function Icon({ name, color = 'white', size = 20 }: { name: IconName; color?: string; size?: number }) { return <Ionicons name={name} color={color} size={size}/>; }
-function Circle({ name, onPress, color }: { name: IconName; onPress?: () => void; color?: string }) { return <Pressable onPress={onPress} style={s.circle}><Icon name={name} size={19} color={color}/></Pressable>; }
+type Product = { id: string; name: string; description: string; price: number; image: string; rating: string; tag?: string; category: string };
+const photos = {
+  coffee: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=1200&q=85',
+  cappuccino: 'https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=700&q=85',
+  muffin: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=700&q=85',
+  sandwich: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=700&q=85',
+  iced: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900&q=85',
+  croissant: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=700&q=85',
+};
+const products: Product[] = [
+  { id: 'cappuccino', name: 'Cappuccino', description: 'Café expresso cremoso com leite vaporizado', price: 16.9, image: photos.cappuccino, rating: '4,8', tag: 'MAIS PEDIDO', category: 'Cafés' },
+  { id: 'muffin', name: 'Muffin de Chocolate', description: 'Macio, intenso e feito com chocolate', price: 12.9, image: photos.muffin, rating: '4,7', tag: 'DA CASA', category: 'Doces' },
+  { id: 'sanduiche', name: 'Sanduíche da Casa', description: 'Pão artesanal, queijo e ingredientes frescos', price: 26.9, image: photos.sandwich, rating: '4,6', tag: 'POPULAR', category: 'Salgados' },
+  { id: 'gelado', name: 'Café Gelado', description: 'Expresso com leite, gelo e muito sabor', price: 18.9, image: photos.iced, rating: '4,9', category: 'Bebidas' },
+  { id: 'croissant', name: 'Croissant', description: 'Massa amanteigada e crocante', price: 14.9, image: photos.croissant, rating: '4,8', category: 'Padaria' },
+];
+const groups: { title: string; icon: IconName; match: string }[] = [
+  { title: 'Cafés', icon: 'cafe-outline', match: 'Cafés' },
+  { title: 'Padaria', icon: 'restaurant-outline', match: 'Padaria' },
+  { title: 'Salgados', icon: 'fast-food-outline', match: 'Salgados' },
+  { title: 'Doces', icon: 'ice-cream-outline', match: 'Doces' },
+  { title: 'Bebidas', icon: 'wine-outline', match: 'Bebidas' },
+  { title: 'Todos', icon: 'grid-outline', match: 'Todos' },
+];
+const brl = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+function Icon({ name, size = 22, color = COLOR.text }: { name: IconName; size?: number; color?: string }) {
+  return <Ionicons name={name} size={size} color={color}/>;
+}
+function Steam({ index }: { index: number }) {
+  const drift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.delay(index * 220),
+      Animated.timing(drift, { toValue: 1, duration: 1550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(drift, { toValue: 0, duration: 0, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [drift, index]);
+  return <Animated.View style={[styles.steam, { left: 19 + index * 15, transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [6, -31] }) }, { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, index % 2 ? 7 : -7] }) }], opacity: drift.interpolate({ inputRange: [0, .3, 1], outputRange: [0, .7, 0] }) }]}/>;
+}
+function Loading({ onSkip }: { onSkip: () => void }) {
+  const enter = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(enter, { toValue: 1, duration: 900, useNativeDriver: true }).start();
+    // Keep the opening short; do not block navigation while images download.
+    const timer = setTimeout(onSkip, 2300);
+    return () => clearTimeout(timer);
+  }, [enter, onSkip]);
+  return <View style={styles.loading}>
+    <Animated.View style={{ alignItems: 'center', opacity: enter, transform: [{ scale: enter.interpolate({ inputRange: [0, 1], outputRange: [.88, 1] }) }] }}>
+      <View style={styles.steamArea}><Steam index={0}/><Steam index={1}/><Steam index={2}/></View>
+      <Icon name="cafe" color="#F4E6D4" size={72}/>
+      <Text style={styles.loadBrand}>CIDOCA</Text><Text style={styles.loadSub}>CAFETERIA</Text>
+      <Text style={styles.loadCopy}>Seu momento merece um bom café.</Text>
+    </Animated.View>
+    <View style={styles.loadingLine}><Animated.View style={[styles.loadingFill, { transform: [{ scaleX: enter }] }]}/></View>
+  </View>;
+}
+function ProductCard({ product, width, onOpen }: { product: Product; width: number; onOpen: () => void }) {
+  return <Pressable style={[styles.productCard, { width }]} onPress={onOpen}>
+    <View style={styles.productPhotoArea}>
+      <Image source={{ uri: product.image }} style={styles.productPhoto} resizeMode="cover"/>
+      {product.tag ? <View style={styles.tag}><Text style={styles.tagText}>{product.tag}</Text></View> : null}
+    </View>
+    <View style={styles.cardBody}>
+      <Text style={styles.productTitle} numberOfLines={1}>{product.name}</Text>
+      <Text style={styles.productDescription} numberOfLines={2}>{product.description}</Text>
+      <View style={styles.ratingRow}><Icon name="star" size={12} color="#B57A37"/><Text style={styles.rating}>{product.rating} • Avaliado por clientes</Text></View>
+      <View style={styles.cardBottom}><Text style={styles.price} numberOfLines={1}>{brl(product.price)}</Text><View style={styles.addRound}><Icon name="add" color="white" size={19}/></View></View>
+    </View>
+  </Pressable>;
+}
 export default function App() {
-  const [item, setItem] = useState<Food | null>(null);
-  const [category, setCategory] = useState('Burger');
+  const { width } = useWindowDimensions();
+  const [ready, setReady] = useState(false);
+  const [tab, setTab] = useState('Início');
+  const [category, setCategory] = useState('Todos');
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState('Home');
-  const [liked, setLiked] = useState<string[]>([]);
-  const [cart, setCart] = useState(0);
-  const [count, setCount] = useState(1);
-  const [size, setSize] = useState('Regular');
-  const [extras, setExtras] = useState<Record<string, boolean>>({ Cheese: true, Patty: false, Bacon: true });
-  const like = (id: string) => setLiked(old => old.includes(id) ? old.filter(x => x !== id) : [...old, id]);
-  const show = (food: Food) => { setItem(food); setCount(1); setSize('Regular'); setExtras({ Cheese: true, Patty: false, Bacon: true }); };
-  const price = item ? (item.price + (size === 'Large' ? 30 : size === 'X-Large' ? 60 : 0) + (extras.Cheese ? 20 : 0) + (extras.Patty ? 50 : 0) + (extras.Bacon ? 40 : 0)) * count : 0;
-  const visible = foods.filter(f => f.name.toLowerCase().includes(search.toLowerCase()) && (tab !== 'Favorite' || liked.includes(f.id)));
-  return <SafeAreaView style={s.root}><StatusBar barStyle="light-content" backgroundColor={C.bg}/>
-    {item ? <View style={{ flex: 1 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <ImageBackground source={{ uri: item.image }} style={s.hero} resizeMode="cover">
-          <LinearGradient colors={['rgba(15,10,8,.7)', 'transparent', C.bg]} style={StyleSheet.absoluteFill}/>
-          <View style={s.heroHeader}><Circle name="chevron-back" onPress={() => setItem(null)}/><View style={s.row}><Circle name="share-social-outline"/><Circle name={liked.includes(item.id) ? 'heart' : 'heart-outline'} color={liked.includes(item.id) ? '#F6534E' : 'white'} onPress={() => like(item.id)}/></View></View>
+  const [selected, setSelected] = useState<Product | null>(null);
+  const [qty, setQty] = useState(1);
+  const [cartCount, setCartCount] = useState(0);
+  const [cartTotal, setCartTotal] = useState(0);
+  const [showAll, setShowAll] = useState(false);
+  const [notice, setNotice] = useState(false);
+  const cardWidth = Math.max(140, Math.min(190, (width - 50) / 2.65));
+  const results = products.filter(p => (category === 'Todos' || category === p.category) && (p.name + ' ' + p.description).toLowerCase().includes(search.trim().toLowerCase()));
+  const open = (p: Product) => { setQty(1); setSelected(p); };
+  const add = (p: Product, amount = 1) => { setCartCount(c => c + amount); setCartTotal(t => t + amount * p.price); setSelected(null); };
+  if (!ready) return <Loading onSkip={() => setReady(true)}/>;
+  return <SafeAreaView style={styles.root}><StatusBar barStyle="dark-content" backgroundColor={COLOR.cream}/>
+    {selected ? <View style={styles.flex}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 104 }}>
+        <ImageBackground source={{ uri: selected.image }} style={[styles.detailHero, { height: Math.min(390, width * .85) }]}>
+          <LinearGradient colors={['rgba(0,0,0,.37)', 'transparent']} style={StyleSheet.absoluteFill}/>
+          <Pressable style={styles.back} onPress={() => setSelected(null)}><Icon name="arrow-back" color="white"/></Pressable>
         </ImageBackground>
-        <View style={s.details}>
-          <Text style={s.chip}>Bestseller</Text>
-          <View style={s.titleRow}><Text style={s.productDetailTitle}>{item.name}</Text><Text style={s.detailPrice}>₹{item.price}</Text></View>
-          <View style={[s.row, { alignItems: 'center', marginTop: 10 }]}><Icon name="star" size={15} color={C.orange}/><Text style={s.info}> 4.8 (3,420 reviews)　│　◷ 15–20 min</Text></View>
-          <Text style={s.desc}>Crispy chicken patty with fresh lettuce, tomato, onion, cheddar cheese and our special spicy sauce.</Text>
-          <View style={s.rule}/><Text style={s.panelHeading}>Customize Your Burger</Text>
-          <View style={s.sizeRow}><Text style={s.info}>Size</Text><View style={s.row}>{['Regular', 'Large', 'X-Large'].map(k => <Pressable key={k} onPress={() => setSize(k)} style={[s.sizeChip, size === k && s.sizeActive]}><Text style={s.sizeLabel}>{k}</Text></Pressable>)}</View></View>
-          <View style={s.rule}/>
-          {([{ key: 'Cheese', label: 'Add Extra Cheese (+₹20)' }, { key: 'Patty', label: 'Add Extra Patty (+₹50)' }, { key: 'Bacon', label: 'Add Bacon (+₹40)' }]).map(e => <Pressable key={e.key} onPress={() => setExtras(v => ({ ...v, [e.key]: !v[e.key] }))} style={s.extra}><Text style={s.extraText}>{e.label}</Text><View style={[s.toggle, extras[e.key] && s.toggleOn]}><View style={[s.toggleDot, extras[e.key] && { alignSelf: 'flex-end', backgroundColor: 'white' }]}/></View></Pressable>)}
+        <View style={styles.detailContents}><Text style={styles.detailCategory}>CIDOCA • {selected.category.toUpperCase()}</Text><Text style={styles.detailName}>{selected.name}</Text><View style={styles.ratingRow}><Icon name="star" size={15} color="#B57A37"/><Text style={styles.detailRating}> {selected.rating} • Preparado com carinho</Text></View><Text style={styles.detailDescription}>{selected.description}. Ingredientes selecionados para acompanhar o seu melhor momento.</Text><View style={styles.detailDivider}/><Text style={styles.detailLabel}>Quantidade</Text><View style={styles.quantity}><Pressable onPress={() => setQty(q => Math.max(1, q - 1))} style={styles.quantityIcon}><Icon name="remove"/></Pressable><Text style={styles.quantityText}>{qty}</Text><Pressable onPress={() => setQty(q => q + 1)} style={styles.quantityIcon}><Icon name="add"/></Pressable></View></View>
+      </ScrollView>
+      <View style={styles.detailBottom}><Pressable style={styles.addCartButton} onPress={() => add(selected, qty)}><Icon name="bag-add-outline" color="white"/><Text style={styles.addCartText}>Adicionar ao pedido</Text><Text style={styles.addCartText}>{brl(selected.price * qty)}</Text></Pressable></View>
+    </View> : <View style={styles.flex}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Pressable onPress={() => setNotice(v => !v)} style={styles.iconTap}><Icon name="menu-outline" size={27}/></Pressable>
+          <View style={styles.brand}><Icon name="cafe" size={22} color={COLOR.coffee}/><Text style={styles.brandName}>CIDOCA</Text><View style={styles.brandSubline}><View style={styles.littleLine}/><Text style={styles.brandSmall}>CAFETERIA</Text><View style={styles.littleLine}/></View></View>
+          <View style={styles.headerRight}><Pressable onPress={() => setNotice(v => !v)} style={styles.iconTap}><Icon name="notifications-outline" size={23}/><View style={styles.badge}><Text style={styles.badgeText}>1</Text></View></Pressable><Pressable onPress={() => setTab('Pedido')} style={styles.iconTap}><Icon name="cart-outline" size={24}/>{cartCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{cartCount}</Text></View>}</Pressable></View>
         </View>
+        {notice && <View style={styles.notice}><Text style={styles.noticeText}>Bem-vindo à Cafeteria CIDOCA! Faça seu pedido com carinho.</Text></View>}
+        {tab === 'Pedido' ? <View style={styles.emptyPage}><Icon name="bag-handle-outline" color={COLOR.coffee} size={43}/><Text style={styles.emptyTitle}>Seu pedido</Text><Text style={styles.emptyText}>{cartCount ? `${cartCount} item(ns) • ${brl(cartTotal)}` : 'Seu carrinho está vazio por enquanto.'}</Text><Text style={styles.emptyText}>Pagamento e entrega serão adicionados em breve.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Início')}><Text style={styles.primaryText}>Ver o cardápio</Text></Pressable></View> :
+        tab === 'Recompensas' || tab === 'Perfil' ? <View style={styles.emptyPage}><Icon name={tab === 'Perfil' ? 'person-circle-outline' : 'gift-outline'} color={COLOR.coffee} size={45}/><Text style={styles.emptyTitle}>{tab}</Text><Text style={styles.emptyText}>Estamos preparando esta área para você.</Text><Pressable style={styles.primaryAction} onPress={() => setTab('Início')}><Text style={styles.primaryText}>Voltar ao início</Text></Pressable></View> : <>
+        <View style={styles.searchRow}><View style={styles.searchBox}><Icon name="search-outline" size={21}/><TextInput style={styles.searchInput} placeholder="Buscar cafés, lanches e mais..." placeholderTextColor="#96877E" value={search} onChangeText={setSearch} returnKeyType="search"/></View><Pressable style={styles.filter} onPress={() => setCategory(category === 'Todos' ? 'Cafés' : 'Todos')}><Icon name="options-outline" size={22}/></Pressable></View>
+        {tab === 'Início' && !search ? <Pressable style={[styles.hero, { height: Math.min(248, Math.max(190, width * .52)) }]} onPress={() => open(products[0])}>
+          <ImageBackground source={{ uri: photos.coffee }} style={StyleSheet.absoluteFill} imageStyle={{ borderRadius: 25 }}>
+            <LinearGradient colors={['rgba(19,9,5,.91)', 'rgba(28,13,6,.55)', 'rgba(30,10,0,.10)']} locations={[0, .55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[StyleSheet.absoluteFill, { borderRadius: 25 }]}/>
+          </ImageBackground>
+          <View style={styles.heroContent}><Text style={styles.heroScript}>Bom café</Text><Text style={styles.heroTitle}>Bons momentos</Text><Text style={styles.heroCopy}>Feito com carinho para{ '\n' }aquecer o seu dia.</Text><View style={styles.heroAction}><Text style={styles.heroActionText}>PEDIR AGORA</Text><View style={styles.heroActionIcon}><Icon name="arrow-forward" color={COLOR.coffee} size={17}/></View></View></View>
+          <View style={styles.heroDots}><View style={styles.heroDotActive}/><View style={styles.heroDot}/><View style={styles.heroDot}/></View>
+        </Pressable> : null}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>{groups.map(g => <Pressable key={g.title} onPress={() => setCategory(g.match)} style={styles.categoryItem}><View style={[styles.categoryCircle, category === g.match && styles.categoryCircleActive]}><Icon name={g.icon} size={26} color={category === g.match ? 'white' : COLOR.coffee}/></View><Text style={styles.categoryText} numberOfLines={1}>{g.title}</Text></Pressable>)}</ScrollView>
+        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{search ? 'Resultados' : category === 'Todos' ? 'Queridinhos da casa' : category}</Text><Pressable onPress={() => { setShowAll(v => !v); setCategory('Todos'); }}><Text style={styles.seeAll}>{showAll ? 'Ver menos' : 'Ver tudo'}　→</Text></Pressable></View>
+        {results.length ? showAll || search || category !== 'Todos' ? <View style={[styles.grid, { paddingHorizontal: 16 }]}>{results.map(p => <ProductCard key={p.id} product={p} width={(width - 42) / 2} onOpen={() => open(p)}/>)}</View> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productList}>{results.map(p => <ProductCard key={p.id} product={p} width={cardWidth} onOpen={() => open(p)}/>)}</ScrollView> : <View style={styles.noResults}><Text style={styles.emptyText}>Nenhum produto encontrado.</Text><Pressable onPress={() => { setSearch(''); setCategory('Todos'); }}><Text style={styles.reset}>Limpar filtros</Text></Pressable></View>}
+        {tab === 'Início' && !search && <Pressable style={styles.weekend} onPress={() => open(products[3])}><Image source={{ uri: photos.iced }} style={styles.weekendPhoto}/><View style={styles.weekendCopy}><Text style={styles.weekendOverline}>ESPECIAL DA SEMANA</Text><Text style={styles.weekendTitle}>Uma pausa{ '\n' }mais gostosa</Text><Text style={styles.weekendDesc}>Experimente o nosso café gelado</Text><View style={styles.weekendCTA}><Text style={styles.weekendCTAText}>CONHECER　→</Text></View></View></Pressable>}
+        </>}
       </ScrollView>
-      <View style={s.bottom}><View style={s.quantity}><Pressable onPress={() => setCount(c => Math.max(1, c - 1))} style={s.quantityButton}><Icon name="remove"/></Pressable><Text style={s.count}>{count}</Text><Pressable onPress={() => setCount(c => c + 1)} style={s.quantityButton}><Icon name="add"/></Pressable></View><Pressable style={s.cta} onPress={() => { setCart(x => x + count); setItem(null); setTab('Cart'); }}><Icon name="cart-outline"/><Text style={s.ctaLabel}>Add to Cart</Text><Text style={s.ctaLabel}>₹{price}</Text></Pressable></View>
-    </View> : <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#342016', '#160F0C', C.bg]} style={s.content}>
-          <View style={s.top}><Circle name="menu-outline"/><View style={s.row}><Icon name="location" color={C.orange} size={16}/><Text style={s.location}> Saharsa, Bihar ⌄</Text></View><View style={s.row}><Circle name="notifications-outline"/><View style={s.avatar}><Text>👨🏻</Text></View></View></View>
-          <Text style={s.greeting}>Hi, Mannu 👋</Text>
-          <Text style={s.headline}>Good Food,{'\n'}Good <Text style={{ color: C.orange }}>Mood!</Text></Text>
-          <Text style={s.tagline}>Order your favorite food from top{'\n'}restaurants near you.</Text>
-          <View style={s.search}><Icon name="search-outline"/><TextInput value={search} onChangeText={setSearch} placeholder="Search for food, restaurant..." placeholderTextColor="#C1B7B1" style={s.input}/><Icon name="options-outline"/></View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryRow}>{categories.map(cat => <Pressable key={cat.name} onPress={() => setCategory(cat.name)} style={[s.category, category === cat.name && s.activeCategory]}><Image source={{ uri: cat.image }} style={s.catPhoto}/><Text style={s.catText}>{cat.name}</Text></Pressable>)}</ScrollView>
-          <Pressable style={s.promo} onPress={() => show(foods[1])}>
-            <LinearGradient colors={['#684035', '#271714', '#42251B']} style={StyleSheet.absoluteFill}/>
-            <View style={s.promoText}><Text style={s.small}>⚡ Today's Special</Text><Text style={s.promoHeading}>Spicy Burger{'\n'}Combo</Text><Text style={s.small}>Burger + Fries + Drink</Text><View style={s.order}><Text style={s.orderLabel}>Order Now　→</Text></View></View>
-            <Image source={{ uri: images.burger }} style={s.promoBurger}/>
-            <View style={s.sale}><Text style={s.saleText}>Flat</Text><Text style={s.salePercent}>30%</Text><Text style={s.saleText}>OFF</Text></View>
-          </Pressable>
-          <View style={s.dots}><View style={s.activeDot}/><View style={s.dot}/><View style={s.dot}/></View>
-          <View style={s.section}><Text style={s.sectionHeading}>{tab === 'Favorite' ? 'Your Favorites' : tab === 'Cart' ? 'Your Cart' : 'Popular Now'}</Text><Text style={s.viewAll}>View All</Text></View>
-          {tab === 'Cart' ? <View style={s.cartNote}><Text style={s.panelHeading}>{cart} items in cart</Text><Text style={s.desc}>Checkout will be implemented in the next milestone.</Text></View> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.products}>{visible.length ? visible.map(f => <Pressable key={f.id} onPress={() => show(f)} style={s.product}>{f.bestseller && <Text style={s.productBadge}>Bestseller</Text>}<Pressable onPress={() => like(f.id)} style={s.favorite}><Icon name={liked.includes(f.id) ? 'heart' : 'heart-outline'} color={liked.includes(f.id) ? '#FA5244' : 'white'}/></Pressable><Image source={{ uri: f.image }} style={s.photo}/><Text style={s.foodName}>{f.name}</Text><Text style={s.foodRating}>⭐ {f.rating}</Text><View style={s.productFooter}><Text style={s.foodPrice}>₹{f.price}</Text><View style={s.add}><Icon name="add"/></View></View></Pressable>) : <Text style={s.info}>No products found.</Text>}</ScrollView>}
-        </LinearGradient>
-      </ScrollView>
-      <View style={s.nav}>{([{ name: 'Home', icon: 'home-outline' }, { name: 'Explore', icon: 'compass-outline' }, { name: 'Cart', icon: 'cart-outline' }, { name: 'Favorite', icon: 'heart-outline' }, { name: 'Profile', icon: 'person-outline' }] as { name: string; icon: IconName }[]).map(n => <Pressable onPress={() => setTab(n.name)} key={n.name} style={s.navItem}><Icon name={tab === n.name && n.name === 'Home' ? 'home' : n.icon} color={tab === n.name ? C.orange : 'white'} size={21}/>{n.name === 'Cart' && cart > 0 && <View style={s.bubble}><Text style={s.bubbleText}>{cart}</Text></View>}<Text style={[s.navText, tab === n.name && { color: C.orange }]}>{n.name}</Text></Pressable>)}</View>
+      <View style={styles.bottomNav}>{([{ title: 'Início', icon: 'home-outline' }, { title: 'Cardápio', icon: 'book-outline' }, { title: 'Pedido', icon: 'cafe-outline' }, { title: 'Recompensas', icon: 'gift-outline' }, { title: 'Perfil', icon: 'person-outline' }] as { title: string; icon: IconName }[]).map(i => <Pressable onPress={() => { setTab(i.title); if (i.title === 'Cardápio') { setShowAll(true); setCategory('Todos'); } else if (i.title === 'Início') setShowAll(false); }} key={i.title} style={[styles.tabItem, i.title === 'Pedido' && styles.tabCenter]}><Icon name={i.icon} color={i.title === 'Pedido' ? 'white' : tab === i.title ? COLOR.brown : COLOR.text} size={i.title === 'Pedido' ? 27 : 23}/><Text numberOfLines={1} style={[styles.tabLabel, i.title === 'Pedido' && { color: 'white' }, tab === i.title && i.title !== 'Pedido' && { color: COLOR.brown, fontWeight: '700' }]}>{i.title}</Text></Pressable>)}</View>
     </View>}
   </SafeAreaView>;
 }
-const s = StyleSheet.create({
- root: { flex: 1, backgroundColor: C.bg }, row: { flexDirection: 'row', alignItems: 'center', gap: 8 }, content: { minHeight: '100%', paddingTop: 12 },
- circle: { width: 34, height: 34, borderRadius: 20, backgroundColor: 'rgba(110,93,84,.45)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,.1)' },
- top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 22, height: 43 }, location: { color: 'white', fontSize: 11 }, avatar: { width: 34, height: 34, borderRadius: 20, backgroundColor: '#47372F', alignItems: 'center', justifyContent: 'center' },
- greeting: { marginTop: 13, marginHorizontal: 24, color: 'white', fontSize: 16 }, headline: { color: 'white', fontSize: 35, fontWeight: '900', lineHeight: 37, letterSpacing: -1.2, marginHorizontal: 24, marginTop: 4 },
- tagline: { color: C.muted, marginHorizontal: 24, marginTop: 7, fontSize: 12, lineHeight: 17 },
- search: { marginHorizontal: 22, marginTop: 17, height: 45, borderRadius: 24, backgroundColor: 'rgba(110,95,87,.42)', borderWidth: 1, borderColor: 'rgba(255,255,255,.16)', flexDirection: 'row', gap: 10, paddingHorizontal: 14, alignItems: 'center' }, input: { flex: 1, color: 'white', fontSize: 11 },
- categoryRow: { paddingHorizontal: 22, gap: 8, paddingTop: 17 }, category: { width: 63, height: 78, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, backgroundColor: '#282221', borderWidth: 1, borderColor: '#40342E' }, activeCategory: { backgroundColor: '#693A17', borderColor: C.orange, elevation: 6 }, catPhoto: { width: 46, height: 46, borderRadius: 11 }, catText: { fontSize: 10, color: 'white' },
- promo: { marginHorizontal: 18, marginTop: 15, height: 165, overflow: 'hidden', borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,.15)' }, promoText: { zIndex: 2, marginLeft: 15, marginTop: 14 }, small: { color: '#EEE0D5', fontSize: 10 }, promoHeading: { color: 'white', fontSize: 23, lineHeight: 25, fontWeight: '800', marginVertical: 5 }, order: { marginTop: 12, backgroundColor: C.orange, borderRadius: 22, paddingVertical: 9, width: 108, alignItems: 'center' }, orderLabel: { color: 'white', fontSize: 11, fontWeight: '700' }, promoBurger: { position: 'absolute', right: -3, bottom: 0, width: '53%', height: 125, borderRadius: 18 }, sale: { position: 'absolute', top: 7, right: 10, borderRadius: 35, width: 55, height: 55, backgroundColor: '#F9A019', justifyContent: 'center', alignItems: 'center' }, saleText: { fontSize: 9, color: '#221108', fontWeight: '600' }, salePercent: { fontSize: 17, color: '#221108', fontWeight: '900', lineHeight: 18 },
- dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 9 }, dot: { width: 5, height: 5, borderRadius: 5, backgroundColor: '#685952' }, activeDot: { width: 11, height: 5, backgroundColor: C.orange, borderRadius: 5 },
- section: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 22, marginTop: 13, marginBottom: 12 }, sectionHeading: { fontSize: 16, fontWeight: '800', color: 'white' }, viewAll: { color: 'white', fontSize: 11 },
- products: { paddingHorizontal: 20, paddingBottom: 15, gap: 10 }, product: { width: 136, minHeight: 182, borderRadius: 15, backgroundColor: '#29211E', borderWidth: 1, borderColor: '#50413B', padding: 10, overflow: 'hidden' }, productBadge: { position: 'absolute', top: 7, left: 7, zIndex: 3, fontSize: 8, color: 'white', backgroundColor: '#D94731', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, overflow: 'hidden' }, favorite: { position: 'absolute', top: 7, right: 7, zIndex: 3 }, photo: { width: '100%', height: 95, borderRadius: 12 }, foodName: { color: 'white', fontSize: 12, fontWeight: '700', marginTop: 6, minHeight: 28 }, foodRating: { fontSize: 10, color: C.muted }, productFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }, foodPrice: { color: 'white', fontSize: 14, fontWeight: '800' }, add: { backgroundColor: C.orange, width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
- nav: { position: 'absolute', bottom: 12, left: 15, right: 15, height: 67, borderRadius: 22, backgroundColor: 'rgba(42,39,39,.97)', borderWidth: 1, borderColor: '#494240', flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' }, navItem: { width: 55, alignItems: 'center', gap: 4 }, navText: { color: '#E2DBD6', fontSize: 9 }, bubble: { position: 'absolute', right: 10, top: -7, width: 14, height: 14, borderRadius: 9, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' }, bubbleText: { color: 'white', fontSize: 9 }, cartNote: { marginHorizontal: 20, padding: 20, borderRadius: 18, backgroundColor: C.panel },
- hero: { width: '100%', height: 365 }, heroHeader: { flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: 20, marginTop: 20 },
- details: { marginHorizontal: 15, marginTop: -25, backgroundColor: '#332C28', borderRadius: 23, borderWidth: 1, borderColor: 'rgba(255,255,255,.15)', padding: 17 },
- chip: { alignSelf: 'flex-start', fontSize: 10, backgroundColor: '#BD571C', color: 'white', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 7, overflow: 'hidden' },
- titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 8 }, productDetailTitle: { flex: 1, color: 'white', fontSize: 21, fontWeight: '800' }, detailPrice: { color: C.orange, fontSize: 22, fontWeight: '700' }, info: { color: '#F0EAE6', fontSize: 11 },
- desc: { color: '#DDD4CE', fontSize: 11, lineHeight: 17, marginTop: 13 }, rule: { height: 1, backgroundColor: 'rgba(255,255,255,.13)', marginVertical: 15 }, panelHeading: { color: 'white', fontSize: 15, fontWeight: '800' },
- sizeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }, sizeChip: { paddingHorizontal: 12, paddingVertical: 9, backgroundColor: '#403936', borderRadius: 20, borderWidth: 1, borderColor: '#514842', marginLeft: 5 }, sizeActive: { backgroundColor: C.orange, borderColor: C.orange }, sizeLabel: { color: 'white', fontSize: 10 },
- extra: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 42, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,.08)' }, extraText: { color: 'white', fontSize: 11 }, toggle: { width: 38, height: 22, borderRadius: 14, backgroundColor: '#77716E', paddingHorizontal: 3, justifyContent: 'center' }, toggleOn: { backgroundColor: C.orange }, toggleDot: { width: 16, height: 16, borderRadius: 9, backgroundColor: '#D5D1D0' },
- bottom: { position: 'absolute', bottom: 12, left: 15, right: 15, height: 59, flexDirection: 'row', gap: 9 }, quantity: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 17, borderWidth: 1, borderColor: '#514844', backgroundColor: '#332C29', paddingHorizontal: 8 }, quantityButton: { backgroundColor: '#554B46', borderRadius: 9, width: 29, height: 29, alignItems: 'center', justifyContent: 'center' }, count: { color: 'white', fontSize: 14 }, cta: { flex: 1, backgroundColor: C.orange, borderRadius: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 9 }, ctaLabel: { color: 'white', fontSize: 13, fontWeight: '700' }
+const styles = StyleSheet.create({
+  flex: { flex: 1 }, root: { flex: 1, backgroundColor: COLOR.cream }, scrollContent: { paddingBottom: 112 }, row: { flexDirection: 'row' },
+  header: { height: 89, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 17 }, iconTap: { width: 33, height: 42, alignItems: 'center', justifyContent: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 7 }, brand: { alignItems: 'center', marginLeft: 35 }, brandName: { color: COLOR.coffee, fontFamily: 'serif', fontSize: 26, fontWeight: '700', letterSpacing: -.7, lineHeight: 30 }, brandSubline: { flexDirection: 'row', alignItems: 'center', gap: 6 }, brandSmall: { color: COLOR.coffee, fontSize: 8, letterSpacing: 2.1, fontWeight: '700' }, littleLine: { width: 13, height: 1, backgroundColor: COLOR.coffee },
+  badge: { backgroundColor: COLOR.coffee, borderRadius: 9, minWidth: 15, height: 15, position: 'absolute', right: 0, top: 3, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 }, badgeText: { fontSize: 9, fontWeight: '700', color: 'white' },
+  notice: { marginHorizontal: 17, marginBottom: 8, padding: 12, backgroundColor: '#EDE4D9', borderRadius: 12 }, noticeText: { color: COLOR.coffee, fontSize: 12 },
+  searchRow: { flexDirection: 'row', marginHorizontal: 16, gap: 10, marginBottom: 15 }, searchBox: { flex: 1, minWidth: 0, height: 49, borderRadius: 26, backgroundColor: 'white', borderWidth: 1, borderColor: COLOR.line, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, gap: 10, elevation: 2 }, searchInput: { flex: 1, minWidth: 0, color: COLOR.text, fontSize: 13, height: 47 }, filter: { width: 49, height: 49, borderRadius: 25, backgroundColor: 'white', borderWidth: 1, borderColor: COLOR.line, alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  hero: { marginHorizontal: 16, borderRadius: 25, overflow: 'hidden', justifyContent: 'center' }, heroContent: { marginLeft: 22, width: '75%' }, heroScript: { color: '#E2C4A6', fontFamily: 'serif', fontSize: 20, fontStyle: 'italic' }, heroTitle: { color: '#FFF8EF', fontFamily: 'serif', fontSize: 28, fontWeight: '700', marginTop: 1 }, heroCopy: { color: '#FAF4EF', fontSize: 12, lineHeight: 18, marginTop: 8 }, heroAction: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: COLOR.coffee, borderRadius: 24, paddingLeft: 16, paddingRight: 6, height: 34, marginTop: 15 }, heroActionText: { color: 'white', fontSize: 10, fontWeight: '800', letterSpacing: .5 }, heroActionIcon: { width: 24, height: 24, borderRadius: 14, backgroundColor: '#FFF6EA', alignItems: 'center', justifyContent: 'center' }, heroDots: { position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 }, heroDot: { width: 6, height: 6, borderRadius: 5, backgroundColor: '#C0ADA2' }, heroDotActive: { width: 7, height: 7, borderRadius: 5, backgroundColor: 'white' },
+  categories: { paddingHorizontal: 13, paddingTop: 19, paddingBottom: 12, gap: 8 }, categoryItem: { alignItems: 'center', width: 65, gap: 6 }, categoryCircle: { width: 56, height: 56, borderRadius: 30, backgroundColor: '#FDFBF8', borderWidth: 1, borderColor: COLOR.line, alignItems: 'center', justifyContent: 'center', elevation: 2 }, categoryCircleActive: { backgroundColor: COLOR.coffee, borderColor: COLOR.coffee }, categoryText: { fontSize: 11, color: COLOR.text, fontWeight: '500', maxWidth: 64 },
+  sectionHeader: { marginHorizontal: 16, marginTop: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, sectionTitle: { color: COLOR.text, fontSize: 18, letterSpacing: -.5, fontWeight: '800', flexShrink: 1 }, seeAll: { color: COLOR.brown, fontSize: 12, marginLeft: 8 },
+  productList: { paddingHorizontal: 16, gap: 9, paddingBottom: 6 }, grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 8 }, productCard: { backgroundColor: COLOR.paper, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: COLOR.line, elevation: 2 }, productPhotoArea: { width: '100%', height: 118, backgroundColor: '#E6D7C7' }, productPhoto: { width: '100%', height: '100%' }, tag: { position: 'absolute', top: 8, left: 8, backgroundColor: COLOR.coffee, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 }, tagText: { color: 'white', fontSize: 8, fontWeight: '800' },
+  cardBody: { padding: 9, minHeight: 113 }, productTitle: { fontSize: 12, fontWeight: '800', color: COLOR.text }, productDescription: { fontSize: 10, lineHeight: 13, color: COLOR.soft, height: 28, marginTop: 3 }, ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 }, rating: { color: COLOR.soft, fontSize: 9, flexShrink: 1 }, cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, gap: 2 }, price: { color: COLOR.text, fontSize: 14, fontWeight: '800', flexShrink: 1 }, addRound: { width: 26, height: 26, borderRadius: 14, backgroundColor: COLOR.coffee, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  weekend: { height: 125, backgroundColor: '#EADCCF', marginHorizontal: 16, marginTop: 15, borderRadius: 18, overflow: 'hidden' }, weekendPhoto: { position: 'absolute', right: 0, height: '100%', width: '43%' }, weekendCopy: { paddingTop: 12, paddingLeft: 18, width: '70%' }, weekendOverline: { fontSize: 9, color: COLOR.brown, letterSpacing: .8, fontWeight: '800' }, weekendTitle: { fontFamily: 'serif', fontSize: 23, lineHeight: 24, color: COLOR.coffee }, weekendDesc: { color: COLOR.coffee, fontSize: 10, marginTop: 4 }, weekendCTA: { alignSelf: 'flex-start', marginTop: 7, backgroundColor: COLOR.coffee, borderRadius: 14, paddingVertical: 4, paddingHorizontal: 10 }, weekendCTAText: { color: 'white', fontSize: 9, fontWeight: '700' },
+  bottomNav: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 78, backgroundColor: '#FFFCF8', borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1, borderColor: COLOR.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingBottom: 6 }, tabItem: { minWidth: 0, flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 }, tabCenter: { flex: 0, width: 71, height: 71, borderRadius: 38, backgroundColor: COLOR.coffee, marginTop: -24, borderWidth: 3, borderColor: COLOR.cream, elevation: 6 }, tabLabel: { fontSize: 9, color: COLOR.text },
+  noResults: { padding: 30, alignItems: 'center' }, reset: { color: COLOR.brown, fontWeight: '800', marginTop: 10 }, emptyPage: { margin: 20, alignItems: 'center', paddingVertical: 70, gap: 12 }, emptyTitle: { fontSize: 24, color: COLOR.text, fontWeight: '800' }, emptyText: { color: COLOR.soft, fontSize: 13, textAlign: 'center' }, primaryAction: { marginTop: 17, paddingHorizontal: 25, paddingVertical: 12, backgroundColor: COLOR.coffee, borderRadius: 25 }, primaryText: { color: 'white', fontWeight: '700' },
+  detailHero: { width: '100%' }, back: { position: 'absolute', top: 18, left: 18, width: 42, height: 42, borderRadius: 23, backgroundColor: '#0006', alignItems: 'center', justifyContent: 'center' }, detailContents: { padding: 21 }, detailCategory: { color: COLOR.brown, fontWeight: '800', fontSize: 11, letterSpacing: 1 }, detailName: { color: COLOR.text, fontWeight: '800', fontSize: 29, marginTop: 5 }, detailRating: { color: COLOR.soft, fontSize: 12 }, detailDescription: { color: COLOR.soft, fontSize: 14, lineHeight: 23, marginTop: 17 }, detailDivider: { height: 1, backgroundColor: COLOR.line, marginVertical: 21 }, detailLabel: { fontSize: 15, color: COLOR.text, fontWeight: '700' }, quantity: { flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 15 }, quantityIcon: { width: 38, height: 38, backgroundColor: '#E8DED2', borderRadius: 19, justifyContent: 'center', alignItems: 'center' }, quantityText: { fontSize: 18, fontWeight: '800', color: COLOR.text }, detailBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: COLOR.paper, padding: 15, borderTopWidth: 1, borderColor: COLOR.line }, addCartButton: { height: 54, borderRadius: 17, backgroundColor: COLOR.coffee, alignItems: 'center', justifyContent: 'space-around', flexDirection: 'row', gap: 8, paddingHorizontal: 10 }, addCartText: { color: 'white', fontSize: 13, fontWeight: '800' },
+  loading: { flex: 1, backgroundColor: '#32190F', justifyContent: 'center', alignItems: 'center' }, steamArea: { width: 78, height: 51, position: 'relative', marginBottom: 3 }, steam: { position: 'absolute', bottom: 0, height: 36, width: 6, borderRadius: 8, backgroundColor: '#EAD7C2' }, loadBrand: { color: '#FFF8EF', fontFamily: 'serif', fontSize: 45, fontWeight: '700', letterSpacing: 4, marginTop: 12 }, loadSub: { color: '#E8D1B9', fontSize: 11, fontWeight: '700', letterSpacing: 5 }, loadCopy: { color: '#DCC3AD', fontSize: 12, marginTop: 28 }, loadingLine: { position: 'absolute', bottom: 86, width: 110, height: 3, borderRadius: 3, backgroundColor: '#6C4A37', overflow: 'hidden' }, loadingFill: { width: '100%', height: '100%', backgroundColor: '#F5E3CF' },
 });
