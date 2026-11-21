@@ -1,6 +1,6 @@
 # Cafeteria CIDOCA ☕
 
-Aplicativo de cafeteria em **React Native + Expo + TypeScript**. Interface em português brasileiro, baseada na nova referência fornecida pelo usuário (estética creme/marrom, cafeteria premium).
+Aplicativo demonstrativo em **React Native + Expo + TypeScript**, com interface brasileira inspirada na referência visual enviada.
 
 ## Executar no VS Code
 
@@ -12,20 +12,19 @@ npx expo install --fix
 npx expo start -c
 ```
 
-Use o Expo Go compatível com SDK 58. Confira as dependências com `npx expo-doctor`.
+## Refatoração atual
 
-## Implementado
+- Áreas seguras superiores e inferiores com `react-native-safe-area-context`, considerando câmera/notch e navegação do sistema
+- Navegação inferior redesenhada e mais compacta
+- Tipografia Playfair Display para a marca e títulos; DM Sans para interface
+- Banner da Home troca automaticamente a cada cinco segundos e aceita seleção pelos indicadores
+- Carrinho demonstrativo com produtos, botões +/−, subtotal e resumo
+- Central de notificações com itens e leitura individual/global (dados simulados)
+- Nova animação de abertura com vapor, xícara, marca e carregamento progressivo
+- Conteúdo em português brasileiro e preços em reais
 
-- Home redesenhada e responsiva (banner, busca, categorias, produtos, promoção, menu inferior)
-- Splash animado com xícara, vapor, identidade CIDOCA e barra de progresso visual
-- Listagem de produtos filtrável, busca, detalhes de itens, quantidade e carrinho demonstrativo
-- Textos em português do Brasil e formatação monetária BRL
+## Importante
 
-## Limitações atuais
+A UI foi alterada no repositório, mas **não foi validada em aparelhos reais**. Faça teste de notch, barra inferior Android, fontes, rolagem e cards em diferentes dimensões. A animação é uma tela introdutória no React Native e não substitui o splash nativo do sistema.
 
-- Fotos temporárias remotas da Unsplash, não são fotos reais dos produtos CIDOCA
-- Carrinho apenas no estado local, sem backend, checkout, pagamentos ou pedidos reais
-- Navegação de demonstração; partes do aplicativo ainda são placeholders
-- Necessita teste em dispositivos Android/iOS, inclusive tamanhos de tela diferentes, para validação da fidelidade ao print
-
-Não faça merge até validar visualmente e corrigir quaisquer problemas no Expo Go.
+Fotografias são temporárias, obtidas por URLs externas. Carrinho, notificações e catálogo estão em memória; não há banco, checkout nem pedidos reais.
