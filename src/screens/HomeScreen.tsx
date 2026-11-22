@@ -1,5 +1,5 @@
-import React,{useEffect,useMemo,useState} from 'react';
-import {Image,ImageBackground,Pressable,StyleSheet,Text,TextInput,useWindowDimensions,View} from 'react-native';
+import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {Animated,Easing,Image,ImageBackground,Pressable,StyleSheet,Text,TextInput,useWindowDimensions,View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {colors as c,font,currency} from '../theme/tokens';
 import {products,promotions,Product} from '../data/catalog';
@@ -21,42 +21,58 @@ const promos=[
 export function HomeScreen({onOpen,onMenu,availableHeight}:{onOpen:(p:Product)=>void;onMenu:()=>void;availableHeight:number}){
  const {width}=useWindowDimensions();
  const [current,setCurrent]=useState(0);
+ const currentRef=useRef(0);
+ const [previous,setPrevious]=useState<number|null>(null);
+ const slide=useRef(new Animated.Value(1)).current;
+ const busy=useRef(false);
+ const switchBanner=useCallback((index:number)=>{
+   if(busy.current||index===currentRef.current)return;
+   busy.current=true;
+   setPrevious(currentRef.current);
+   currentRef.current=index;
+   setCurrent(index);
+   slide.setValue(0);
+   Animated.timing(slide,{toValue:1,duration:640,easing:Easing.inOut(Easing.cubic),useNativeDriver:true}).start(()=>{
+     setPrevious(null);
+     busy.current=false;
+   });
+ },[slide]);
  const [query,setQuery]=useState('');
  const [category,setCategory]=useState('Cafés');
- useEffect(()=>{const timer=setInterval(()=>setCurrent(v=>(v+1)%promos.length),5200);return()=>clearInterval(timer)},[]);
+ useEffect(()=>{const timer=setInterval(()=>switchBanner((currentRef.current+1)%promos.length),5200);return()=>clearInterval(timer)},[switchBanner]);
  const compact=availableHeight<665;
  const short=availableHeight<565;
- const gap=compact?7:11;
- const bannerHeight=Math.max(145,Math.min(short?160:compact?190:224,availableHeight*.31));
- const categoryHeight=compact?72:83;
- const cardHeight=Math.max(158,Math.min(220,availableHeight-(bannerHeight+categoryHeight+(compact?218:240))));
- const promoHeight=short?72:compact?91:108;
- const cardWidth=(width-32-14)/3;
+ const gap=compact?6:9;
+ const bannerHeight=Math.min(short?145:compact?180:215,Math.max(135,availableHeight*.29));
+ const categoryHeight=compact?67:76;
+ const promoHeight=short?66:compact?75:94;
+ const fixed=44+bannerHeight+categoryHeight+30+promoHeight+gap*5;
+ const tileHeight=Math.max(112,Math.min(176,(availableHeight-fixed-9)/2));
+ const cardWidth=(width-32-10)/2;
  const shown=useMemo(()=>{
   const search=query.trim().toLocaleLowerCase('pt-BR');
   const all=search?products.filter(p=>(p.name+' '+p.description).toLocaleLowerCase('pt-BR').includes(search)):products;
-  return all.slice(0,3);
+  return all.slice(0,4);
  },[query]);
- const promo=promos[current];
- const product=products.find(p=>p.id===promo.id)||products[0];
+ const active=promos[current];
+ const product=products.find(p=>p.id===active.id)||products[0];
+ const bannerLayer=(index:number,incoming:boolean)=>{const item=promos[index];return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{transform:[{translateX:slide.interpolate({inputRange:[0,1],outputRange:incoming?[width,0]:[0,-width]})}]}]}>
+  <ImageBackground source={{uri:item.image}} resizeMode="cover" style={StyleSheet.absoluteFill}>
+   <LinearGradient colors={['rgba(20,9,5,.93)','rgba(20,9,5,.58)','rgba(20,9,5,.03)']} locations={[0,.47,1]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
+  </ImageBackground>
+  <View style={s.heroWords}><Text style={[s.script,{fontSize:short?16:19}]} numberOfLines={1}>{item.lead}</Text><Text style={[s.heroHeadline,{fontSize:short?22:compact?26:30,lineHeight:short?25:compact?29:33}]} numberOfLines={2}>{item.headline}</Text><Text style={s.heroDesc} numberOfLines={2}>{item.subtitle}{'\\n'}Preparado para seu dia.</Text><View style={s.heroCta}><Text style={s.heroCtaText}>PEDIR AGORA</Text><View style={s.heroArrow}><Icon name="arrow-forward" size={15} color={c.espresso}/></View></View></View>
+ </Animated.View>};
  return <View style={s.root}>
    <View style={[s.searchRow,{marginBottom:gap}]}>
      <View style={s.searchBox}><Icon name="search-outline" color={c.ink} size={21}/><TextInput value={query} onChangeText={setQuery} placeholder="Buscar cafés, lanches e mais..." placeholderTextColor="#867C74" style={s.searchInput}/></View>
      <Pressable onPress={onMenu} style={s.filter} accessibilityLabel="Abrir cardápio e filtros"><Icon name="options-outline" size={21} color={c.ink}/></Pressable>
    </View>
    <View style={[s.banner,{height:bannerHeight,marginBottom:gap}]}>
-    <Pressable onPress={()=>onOpen(product)} style={StyleSheet.absoluteFill}>
-      <ImageBackground source={{uri:promo.image}} resizeMode="cover" style={StyleSheet.absoluteFill}>
-       <LinearGradient colors={['rgba(20,9,5,.95)','rgba(20,9,5,.65)','rgba(20,9,5,.01)']} locations={[0,.46,1]} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill}/>
-      </ImageBackground>
-      <View style={s.heroWords}>
-        <Text style={[s.script,{fontSize:short?17:20}]} numberOfLines={1}>{promo.lead}</Text>
-        <Text style={[s.heroHeadline,{fontSize:short?23:compact?27:31,lineHeight:short?26:compact?31:34}]} numberOfLines={2}>{promo.headline}</Text>
-        <Text style={s.heroDesc} numberOfLines={3}>{promo.subtitle}{'\n'}Preparado para seu dia.</Text>
-        <View style={s.heroCta}><Text style={s.heroCtaText}>PEDIR AGORA</Text><View style={s.heroArrow}><Icon name="arrow-forward" size={15} color={c.espresso}/></View></View>
-      </View>
-    </Pressable>
-    <View style={s.dots}>{promos.map((item,i)=><Pressable key={item.id} onPress={()=>setCurrent(i)} style={[s.dot,current===i&&s.dotActive]} accessibilityLabel={'Mostrar promoção '+(i+1)}/>)}</View>
+     <Pressable onPress={()=>onOpen(product)} style={StyleSheet.absoluteFill}>
+       {previous!==null&&bannerLayer(previous,false)}
+       {bannerLayer(current,true)}
+     </Pressable>
+     <View style={s.dots}>{promos.map((item,i)=><Pressable key={item.id} onPress={()=>switchBanner(i)} style={[s.dot,current===i&&s.dotActive]} accessibilityLabel={'Mostrar promoção '+(i+1)}/>)}</View>
    </View>
    <View style={[s.categories,{height:categoryHeight,marginBottom:gap}]}>
      {categories.map(cat=><Pressable key={cat.name} onPress={()=>{setCategory(cat.name);onMenu()}} style={s.category} accessibilityLabel={'Explorar '+cat.name}>
@@ -68,17 +84,16 @@ export function HomeScreen({onOpen,onMenu,availableHeight}:{onOpen:(p:Product)=>
     <Text style={s.sectionTitle}>Mais pedidos</Text>
     <Pressable onPress={onMenu} style={s.seeAll}><Text style={s.seeAllText}>Ver tudo</Text><Icon name="arrow-forward" size={14} color={c.espresso}/></Pressable>
    </View>
-   <View style={[s.cards,{height:cardHeight,marginBottom:gap}]}>
-    {shown.map((p,i)=><Pressable key={p.id} onPress={()=>onOpen(p)} style={[s.card,{width:cardWidth}]}>
-      <View style={[s.cardImageFrame,{height:Math.round(cardHeight*.49)}]}>
+   <View style={[s.cards,{marginBottom:gap}]}>
+    {shown.map((p,i)=><Pressable key={p.id} onPress={()=>onOpen(p)} style={[s.card,{width:cardWidth,height:tileHeight}]}>
+      <View style={[s.cardImageFrame,{height:Math.round(tileHeight*.48)}]}>
        <Image source={{uri:p.image}} style={s.cardImage} resizeMode="cover"/>
-       <View style={s.cardTag}><Text style={s.cardTagText}>{i===0?'MAIS PEDIDO':i===1?'DA CASA':'POPULAR'}</Text></View>
+       <View style={s.cardTag}><Text style={s.cardTagText}>{p.badge||'CIDOCA'}</Text></View>
       </View>
       <View style={s.cardContent}>
-        <Text style={s.cardName} numberOfLines={2}>{p.name}</Text>
-        {!short&&<Text style={s.cardDescription} numberOfLines={2}>{p.description}</Text>}
-        <View style={s.rating}><Icon name="star" size={11} color="#AE7A3E"/><Text style={s.ratingText}>{p.rating} (1,2 mil+)</Text></View>
-        <View style={s.cardFooter}><Text style={s.cardPrice} numberOfLines={1}>{currency(p.price)}</Text><View style={s.plus}><Icon name="add" size={17} color={c.white}/></View></View>
+        <Text style={s.cardName} numberOfLines={1}>{p.name}</Text>
+        <View style={s.rating}><Icon name="star" size={11} color="#AE7A3E"/><Text style={s.ratingText}>{p.rating} • Da casa</Text></View>
+        <View style={s.cardFooter}><Text style={s.cardPrice} numberOfLines={1}>{currency(p.price)}</Text><View style={s.plus}><Icon name="add" size={16} color={c.white}/></View></View>
       </View>
     </Pressable>)}
     {shown.length===0&&<Text style={s.empty}>Nenhum produto encontrado.</Text>}
@@ -117,21 +132,21 @@ const s=StyleSheet.create({
  sectionTitle:{fontFamily:font.extra,color:c.ink,fontSize:17,letterSpacing:-.4},
  seeAll:{flexDirection:'row',alignItems:'center',gap:5},
  seeAllText:{fontFamily:font.medium,color:c.ink,fontSize:11},
- cards:{flexDirection:'row',gap:7,justifyContent:'space-between'},
+ cards:{flexDirection:'row',flexWrap:'wrap',columnGap:10,rowGap:9,justifyContent:'space-between'},
  card:{backgroundColor:'#FFFFFF',borderRadius:13,borderWidth:1,borderColor:'#ECE5DE',overflow:'hidden',elevation:2},
  cardImageFrame:{width:'100%',backgroundColor:'#E2C5A9'},
  cardImage:{width:'100%',height:'100%'},
  cardTag:{position:'absolute',top:7,left:6,backgroundColor:c.espresso,borderRadius:7,paddingVertical:3,paddingHorizontal:5},
  cardTagText:{fontFamily:font.bold,color:'#FFFFFF',fontSize:7},
- cardContent:{flex:1,justifyContent:'space-between',paddingHorizontal:8,paddingTop:6,paddingBottom:7},
- cardName:{fontFamily:font.bold,color:c.ink,fontSize:11,lineHeight:13},
+ cardContent:{flex:1,justifyContent:'space-between',paddingHorizontal:10,paddingTop:5,paddingBottom:6},
+ cardName:{fontFamily:font.bold,color:c.ink,fontSize:12,lineHeight:15},
  cardDescription:{fontFamily:font.body,color:c.muted,fontSize:9,lineHeight:11},
  rating:{flexDirection:'row',alignItems:'center',gap:3},
  ratingText:{fontFamily:font.medium,fontSize:9,color:c.muted},
  cardFooter:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:2},
  cardPrice:{fontFamily:font.extra,fontSize:12,color:c.espresso,flexShrink:1},
  plus:{width:24,height:24,borderRadius:14,backgroundColor:c.espresso,alignItems:'center',justifyContent:'center'},
- secondBanner:{overflow:'hidden',borderRadius:16,backgroundColor:'#EFE0CF'},
+ secondBanner:{overflow:'hidden',borderRadius:16,backgroundColor:'#EFE0CF',flexShrink:1},
  promoPhoto:{position:'absolute',right:0,top:0,bottom:0,width:'52%',height:'100%'},
  promoCopy:{paddingLeft:17,justifyContent:'center',height:'100%',width:'70%'},
  promoKicker:{fontFamily:font.bold,color:'#986840',fontSize:9,letterSpacing:.6},
