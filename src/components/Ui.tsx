@@ -5,9 +5,9 @@ import { colors as c, currency, font } from '../theme/tokens';
 import { Product } from '../data/catalog';
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export const Icon = ({name,size=21,color=c.ink}:{name:IconName;size?:number;color?:string}) => <Ionicons name={name} size={size} color={color}/>;
-export function Header({onBell,unread,onCart,cart}:{onBell:()=>void;unread:number;onCart:()=>void;cart:number}){
+export function Header({onBell,onMenu,unread,onCart,cart}:{onBell:()=>void;onMenu:()=>void;unread:number;onCart:()=>void;cart:number}){
  return <View style={s.header}>
-  <Pressable style={s.iconButton} accessibilityLabel="Abrir menu" onPress={onBell}><Icon name="menu-outline" size={25}/></Pressable>
+  <Pressable style={s.iconButton} accessibilityLabel="Abrir cardápio" onPress={onMenu}><View style={s.hamburger}><View style={s.hamburgerStroke}/><View style={s.hamburgerStroke}/><View style={s.hamburgerStroke}/></View></Pressable>
   <View pointerEvents="none" style={s.brand}><Icon name="cafe-outline" size={19} color={c.coffee}/><Text style={s.brandText}>CIDOCA</Text><Text style={s.brandSub}>—  CAFETERIA  —</Text></View>
   <View style={s.actions}><Pressable accessibilityLabel="Notificações" onPress={onBell} style={s.iconButton}><Icon name="notifications-outline" size={23}/>{unread>0&&<View style={s.countDot}><Text style={s.countText}>{unread}</Text></View>}</Pressable><Pressable accessibilityLabel="Carrinho" onPress={onCart} style={s.iconButton}><Icon name="bag-handle-outline" size={23}/>{cart>0&&<View style={s.countDot}><Text style={s.countText}>{cart}</Text></View>}</Pressable></View>
  </View>
@@ -23,6 +23,7 @@ export function PrimaryButton({label,onPress,amount,disabled=false}:{label:strin
  return <Pressable disabled={disabled} onPress={onPress} style={[s.primary,disabled&&{opacity:.45}]}><Text style={s.primaryText}>{label}</Text>{amount&&<Text style={s.primaryAmount}>{amount}</Text>}<Icon name="arrow-forward" color={c.white} size={17}/></Pressable>
 }
 const s=StyleSheet.create({
+ hamburger:{width:24,height:19,justifyContent:'space-between',paddingVertical:2},hamburgerStroke:{height:2,width:23,backgroundColor:c.ink,borderRadius:2},
  header:{height:80,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:16},brand:{position:'absolute',left:98,right:98,alignItems:'center',justifyContent:'center'},brandText:{fontFamily:font.display,fontSize:23,lineHeight:27,color:c.espresso,letterSpacing:.2},brandSub:{fontFamily:font.bold,color:c.coffee,fontSize:7,letterSpacing:2},actions:{flexDirection:'row',gap:3},iconButton:{width:35,height:44,alignItems:'center',justifyContent:'center'},countDot:{position:'absolute',right:1,top:4,borderRadius:10,minWidth:15,height:15,paddingHorizontal:2,alignItems:'center',justifyContent:'center',backgroundColor:c.espresso},countText:{color:c.white,fontSize:9,fontFamily:font.bold},
  nav:{height:66,borderTopWidth:1,borderColor:c.line,backgroundColor:c.surface,borderTopLeftRadius:22,borderTopRightRadius:22,flexDirection:'row',paddingHorizontal:7,alignItems:'center',justifyContent:'space-around',overflow:'visible'},
  navItem:{flex:1,minWidth:0,height:57,justifyContent:'center',alignItems:'center',gap:4,borderRadius:14},
